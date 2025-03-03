@@ -3,7 +3,7 @@
   <component name="PublishConfigData" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
     <option name="confirmBeforeUploading" value="false" />
     <serverData>
-      <paths name="14_dev">
+      <paths name="llm_dev">
         <serverdata>
           <mappings>
             <mapping deploy="/code-online/code/EasyR1" local="$PROJECT_DIR$" web="/" />
