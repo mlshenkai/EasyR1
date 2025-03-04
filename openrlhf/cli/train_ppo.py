@@ -159,6 +159,7 @@ def train(args):
     prompts_dataloader = strategy.setup_dataloader(
         prompts_dataset, args.rollout_batch_size // strategy.world_size, True, True
     )
+    print(f"\nrollout batch size: {args.rollout_batch_size} / {strategy.world_size} = {args.rollout_batch_size // strategy.world_size}\n")
     if args.pretrain_data:
         pretrain_dataloader = itertools.cycle(
             iter(

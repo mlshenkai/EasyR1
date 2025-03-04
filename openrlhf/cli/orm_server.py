@@ -121,9 +121,13 @@ def _compute_single_reward(seq: str) -> float:
         # Parse query & response
         query, response = parse_query(seq)
         ground_truth = ground_truth_dict[re.sub(r"[^a-zA-Z0-9]", "", query)]
-
+        print("\n========response========\n")
+        print(response)
+        print("\n========================\n")
         answer, reasoning = extract_answer_and_reasoning(response)
-
+        print("\n========ground_true:answer========\n")
+        print(ground_truth, answer)
+        print("\n========================\n")
         if answer is None:
             # means boxed not in response
             reward = -0.5
@@ -223,9 +227,9 @@ if __name__ == "__main__":
         description="Run the Code Contests Reward Model server"
     )
     parser.add_argument(
-        "--dataset", type=str, help="Path to the dataset", required=True
+        "--dataset", type=str, help="Path to the dataset", default="/code-online/code/EasyR1/evaluation/data/aime_full_except_24"
     )
-    parser.add_argument("--model_name", type=str, help="model name", required=True)
+    parser.add_argument("--model_name", type=str, help="model name", default="/llm/qwen/Qwen2.5-32B-Instruct")
     parser.add_argument(
         "--log_dir", type=str, help="Directory for request logs", default="logs"
     )

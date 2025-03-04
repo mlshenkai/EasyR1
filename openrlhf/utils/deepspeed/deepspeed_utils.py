@@ -1,4 +1,15 @@
+from enum import Enum
+
 from deepspeed.runtime.zero.partition_parameters import ZeroParamStatus
+
+
+class OffloadStateTypeEnum(str, Enum):
+    """ Enum for internal buffer types """
+    optim_states = "optim_states"
+    hp_params = "hp_params"
+    lp_params = "lp_params"
+    lp_grads = "lp_grads"
+    contiguous_grad_buffer = "contiguous_grad_buffer"
 
 
 def get_train_ds_config(
@@ -115,7 +126,7 @@ def offload_deepspeed_states(model, pin_memory=True, non_blocking=True):
 
     # if zero_stage == 3 and not adam_offload:
     import torch
-    from deepspeed.runtime.zero.offload_config import OffloadDeviceEnum, OffloadStateTypeEnum
+    from deepspeed.runtime.zero.offload_config import OffloadDeviceEnum
 
     model.optimizer.offload_states(
         include=[
@@ -130,6 +141,8 @@ def offload_deepspeed_states(model, pin_memory=True, non_blocking=True):
         non_blocking=non_blocking,
     )
     model.empty_partition_cache()
+    torch.cuda.empty_cache()
+    torch.distributed.barrier()
     torch.cuda.synchronize()
 
 
@@ -148,4 +161,6 @@ def reload_deepspeed_states(model, non_blocking=True):
     import torch
 
     model.reload_states(non_blocking=non_blocking)
+    torch.cuda.empty_cache()
+    torch.distributed.barrier()
     torch.cuda.synchronize()
