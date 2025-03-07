@@ -1,11 +1,13 @@
 set -x
-export CUDA_VISIBLE_DEVICES=1,3,4,5,6,7
+
+export CUDA_VISIBLE_DEVICES=1,4,5,7,8,9
+export RAY_TMPDIR=/code-online/cache/ray
 ray start --head --node-ip-address 127.0.0.1 --num-gpus 6
 
 sleep 10s
 
 yes | ray job submit --address="http://127.0.0.1:8265" \
-   --runtime-env-json='{"working_dir": "/tmp/code"}' \
+   --runtime-env-json='{"working_dir": "/data2/resources/ray_code"}' \
    -- python3 -m openrlhf.cli.train_ppo_ray \
    --ref_num_nodes 1 \
    --ref_num_gpus_per_node 2 \
@@ -18,12 +20,12 @@ yes | ray job submit --address="http://127.0.0.1:8265" \
    --use_kl_loss \
    --kl_estimator k3 \
    --pretrain /code-online/code/EasyR1/resources/models/Qwen2.5-7B-Instruct1M \
-   --save_path /tmp/code/examples/test_scripts/final/Qwen2.5-7B-rlhf \
-   --ckpt_path /tmp/code/examples/test_scripts/ckpt/Qwen2.5-7B-rlhf \
+   --save_path /data2/resources/ray_code/limo/final/Qwen2.5-7B-rlhf \
+   --ckpt_path /data2/resources/ray_code/limo/ckpt/Qwen2.5-7B-rlhf \
    --save_hf_ckpt \
-   --micro_train_batch_size 2 \
+   --micro_train_batch_size 4 \
    --train_batch_size 32 \
-   --micro_rollout_batch_size 2 \
+   --micro_rollout_batch_size 8 \
    --rollout_batch_size 64 \
    --n_samples_per_prompt 1 \
    --max_epochs 1 \
@@ -40,18 +42,20 @@ yes | ray job submit --address="http://127.0.0.1:8265" \
    --normalize_reward \
    --gradient_checkpointing \
    --packing_samples \
-   --vllm_sync_backend nccl \
-   --enforce_eager \
    --use_wandb "b4d97196d9460a5f190eef95e38a06518badc099" \
-   --wandb_project "limo_grpo" \
+   --wandb_project "limo_grpo_reinforce" \
    --remote_rm_url http://127.0.0.1:8000/get_reward \
    --temperature 0.7 \
    --advantage_estimator reinforce \
    --flash_attn \
    --save_steps 20 \
    --max_ckpt_num 3 \
+   --vllm_sync_backend nccl \
+   --enforce_eager \
    --vllm_enable_sleep \
    --adam_offload
-
 #   --deepspeed_enable_sleep \
+#   --adam_offload
+
+#
 

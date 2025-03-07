@@ -42,6 +42,7 @@ OpenRLHF 是一个基于 Ray、DeepSpeed 和 HF Transformers 构建的高性能 
 
 
 ## 新闻  
+- [2025/3] 我们开源了 [OpenRLHF-M](https://github.com/OpenRLHF/OpenRLHF-M), 一个为多模态模型设计的高性能 RLHF 框架.
 - [2025/2] [Logic-RL](https://arxiv.org/abs/2502.14768) 和 [PRIME](https://arxiv.org/abs/2502.01456) 展示了 REINFORCE++ 在训练稳定性上优于 GRPO 并且比 PPO 更快。
 - [2025/2] StepFunc 实现了 [OpenRLHF 的单控制器版本](https://github.com/Open-Reasoner-Zero/Open-Reasoner-Zero).
 - [2025/2] [LMM-R1](https://github.com/TideDra/lmm-r1) 是 OpenRLHF 的一个分支，旨在为多模态任务上复现 DeepSeek-R1 提供高性能的 RL 基础设施。
@@ -171,7 +172,7 @@ data
 
 > [!NOTE]
 >默认情况下我们使用 `train` 和 `test` 作为 split 区分 Huggingface 的训练/测试数据。
->`JSON key` 选项取决于具体的数据集。请参阅 [Reward Dataset](https://github.com/OpenRLHF/OpenRLHF/blob/main/openrlhf/datasets/reward_dataset.py#L10) 和 [SFT Dataset](https://github.com/OpenRLHF/OpenRLHF/blob/mai
+>`JSON key` 选项取决于具体的数据集。请参阅 [Reward Dataset](https://github.com/OpenRLHF/OpenRLHF/blob/main/openrlhf/datasets/reward_dataset.py#L10) 和 [SFT Dataset](https://github.com/OpenRLHF/OpenRLHF/blob/main/openrlhf/datasets/sft_dataset.py#L9)
 
 
 ### Supervised Fine-tuning
@@ -500,6 +501,7 @@ python -m openrlhf.cli.lora_combiner \
 - [Ray ↗](https://github.com/ray-project/ray)
 
 我们的项目还想要感谢 [ColossalChat](https://github.com/hpcaitech/ColossalAI/tree/main/applications/Chat) 和 [DeepSpeedChat](https://github.com/microsoft/DeepSpeedExamples/tree/master/applications/DeepSpeed-Chat)。在项目的早期阶段，我们参考了他们的代码设计。
+我们的项目还想要感谢 [Netmind.AI](https://www.netmind.ai/) 对于ring attention开发的GPU支持。
 
 (2024/7) 我们的 GitHub 组织从 OpenLLMAI 迁移到了 OpenRLHF.
 

@@ -1,36 +1,33 @@
 # -*- coding: utf-8 -*-
 # @Author: watcher
-# @Created Time: 2025/2/27 14:16
+# @Created Time: 2025/3/7 10:40
 # @File: orm_server
 # @Email: mlshenkai@163.com
-import concurrent.futures
-import datetime
-import inspect
-import io
+import asyncio
 import json
-import logging
-import multiprocessing
 import os
 import re
 import signal
-import sys
 import time
+import argparse
+import datetime
+from http.client import HTTPException
 from pathlib import Path
-from typing import Dict, List
-
-from datasets import Dataset, DatasetDict, load_dataset
-from fastapi import FastAPI, Request
-from numpy import isin
-from pydantic import BaseModel
-from tqdm import tqdm
+from typing import List
+import concurrent.futures
+import uvicorn
+from datasets import load_dataset, Dataset, DatasetDict
+from transformers import AutoTokenizer
+import logging
+from fastapi import FastAPI, Request, HTTPException
 
 from evaluation.grader import math_equal
-from openrlhf.cli.deepseek_reward import grade_cot
+from rewards.reward_funcs.deepseek_reward import grade_cot
 
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
+# 设定日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 # Globals (you may need them to be accessible by each process)
 args = None
@@ -138,9 +135,9 @@ def _compute_single_reward(seq: str) -> float:
         # Apply length penalty if specified
         if args.length_penalty != 0.0:
             if reasoning is None:
-                reasoning_length = len(response) / 4
+                reasoning_length = len(response)
             else:
-                reasoning_length = len(reasoning) / 4
+                reasoning_length = len(reasoning)
             # Subtract a fraction of the length penalty
             reward = reward - args.length_penalty / reasoning_length
 
@@ -193,77 +190,140 @@ def calculate_reward(data: dict) -> float | list[float]:
     return rewards
 
 
+# FastAPI 实例
 app = FastAPI()
-request_logger = None
+
+# 监听终止信号
+stop_event = asyncio.Event()
+
+
+def shutdown():
+    logger.info("Received shutdown signal. Exiting...")
+    stop_event.set()
+
+
+signal.signal(signal.SIGTERM, lambda sig, frame: shutdown())
+signal.signal(signal.SIGINT, lambda sig, frame: shutdown())
 
 
 @app.on_event("startup")
 async def startup_event():
-    global request_logger
-    request_logger = RequestLogger(log_dir=args.log_dir)
-    logger.info("Request logger initialized")
+    try:
+        app.state.request_logger = RequestLogger(log_dir=args.log_dir)
+        logger.info("Request logger initialized")
+    except Exception as e:
+        logger.critical(f"Failed to initialize request logger: {e}", exc_info=True)
+        raise RuntimeError("Server startup failed")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Server is shutting down...")
 
 
 @app.post("/get_reward")
-async def get_reward(data: Request):
+async def get_reward(request: Request):
     start_time = time.time()
     try:
-        data = await data.json()
-        reward = calculate_reward(data)
+        json_data = await request.json()
+        if not isinstance(json_data, dict):
+            raise ValueError("Invalid request format")
+
+        # **确保计算任务不会阻塞**
+        loop = asyncio.get_running_loop()
+        reward = await loop.run_in_executor(None, calculate_reward, json_data)
+
+        # 记录日志
         processing_time = time.time() - start_time
-        request_logger.log_request(data, reward, processing_time)
+        if hasattr(app.state, "request_logger"):
+            loop.run_in_executor(
+                None,
+                app.state.request_logger.log_request,
+                json_data,
+                reward,
+                processing_time,
+            )
+        else:
+            logger.warning("Request logger is not initialized")
+
+        return {"rewards": reward}
+
+    except ValueError as ve:
+        logger.warning(f"Invalid request data: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
+
     except Exception as e:
-        print(f"Error1: {str(e)}")
-        reward = 0.0
-    return {"rewards": reward}
+        logger.error(f"Unhandled error: {e}", exc_info=True)
+        return {"rewards": 0.0, "error": str(e)}
+
+
+# **优化数据加载，避免 OOM**
+def load_ground_truth(dataset_path):
+    ground_truth_dict = {}
+    try:
+        dataset = load_dataset(dataset_path)
+        if isinstance(dataset, (DatasetDict, Dataset)):
+            for split in dataset if isinstance(dataset, DatasetDict) else [dataset]:
+                for example in dataset[split]:
+                    query = re.sub(r"[^a-zA-Z0-9]", "", example["problem"])
+                    ground_truth_dict[query] = example["answer"]
+        else:
+            raise ValueError("Dataset format not recognized")
+    except Exception as e:
+        logger.critical(f"Failed to load dataset: {e}", exc_info=True)
+        raise RuntimeError("Dataset loading failed")
+
+    return ground_truth_dict
 
 
 if __name__ == "__main__":
-    import argparse
-
-    import uvicorn
-
     parser = argparse.ArgumentParser(
         description="Run the Code Contests Reward Model server"
     )
     parser.add_argument(
-        "--dataset", type=str, help="Path to the dataset", default="/code-online/code/EasyR1/evaluation/data/aime_full_except_24"
-    )
-    parser.add_argument("--model_name", type=str, help="model name", default="/llm/qwen/Qwen2.5-32B-Instruct")
-    parser.add_argument(
-        "--log_dir", type=str, help="Directory for request logs", default="logs"
+        "--dataset",
+        type=str,
+        default="/code-online/code/EasyR1/evaluation/data/aime_full_except_24",
     )
     parser.add_argument(
-        "--length_penalty",
-        type=float,
-        help="Length penalty for the model",
-        default=20.0,
+        "--model_name", type=str, default="/llm/qwen/Qwen2.5-32B-Instruct"
     )
-    parser.add_argument("--use_gpt", type=float, help="Use GPT or not", default=True)
+    parser.add_argument("--log_dir", type=str, default="logs")
+    parser.add_argument("--length_penalty", type=float, default=20.0)
+    parser.add_argument("--use_gpt", action="store_true", help="Use GPT or not")
 
     args = parser.parse_args()
     os.makedirs(args.log_dir, exist_ok=True)
 
-    # Only load tokenizer if length_penalty is non-zero
-    if args.length_penalty != 0.0:
-        from transformers import AutoTokenizer
+    # **优化 tokenizer 加载，避免内存泄漏**
+    tokenizer = None
+    try:
+        if args.length_penalty != 0.0:
+            tokenizer = AutoTokenizer.from_pretrained(
+                args.model_name, low_cpu_mem_usage=True
+            )
+    except Exception as e:
+        logger.error(f"Failed to load tokenizer: {e}", exc_info=True)
 
-        tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    # **优化 ground truth 数据加载**
+    ground_truth_dict = {}
+    try:
+        ground_truth_dict = load_ground_truth(args.dataset)
+    except RuntimeError:
+        logger.critical("Server cannot start due to dataset loading failure")
+        exit(1)
 
-    # Load dataset
-    dataset = load_dataset(args.dataset)
+    # **使用 `uvicorn` 运行，监听终止信号**
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    server = uvicorn.Server(config)
 
-    # Prepare ground-truth dict
-    if isinstance(dataset, DatasetDict):
-        for split in dataset:
-            for example in dataset[split]:
-                query = re.sub(r"[^a-zA-Z0-9]", "", example["problem"])
-                ground_truth_dict[query] = example["answer"]
-    elif isinstance(dataset, Dataset):
-        for example in dataset:
-            query = re.sub(r"[^a-zA-Z0-9]", "", example["problem"])
-            ground_truth_dict[query] = example["answer"]
-    else:
-        raise ValueError("Dataset format not recognized")
+    loop = asyncio.get_event_loop()
+    loop.create_task(server.serve())
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    try:
+        loop.run_until_complete(stop_event.wait())  # **等待 SIGTERM 终止信号**
+    except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received, shutting down...")
+    finally:
+        loop.run_until_complete(server.shutdown())
+        logger.info("Server stopped.")

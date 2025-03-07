@@ -164,7 +164,6 @@ class PPOTrainer(ABC):
             import wandb
 
             self._wandb = wandb
-            print(f"self._wandb: {self._wandb}")
             if not wandb.api.api_key:
                 wandb.login(key=strategy.args.use_wandb)
             wandb.init(
@@ -175,7 +174,7 @@ class PPOTrainer(ABC):
                 config=strategy.args.__dict__,
                 reinit=True,
             )
-            print(f"wandb_key: {strategy.args.use_wandb}")
+
             wandb.define_metric("train/global_step")
             wandb.define_metric("train/*", step_metric="train/global_step", step_sync=True)
             wandb.define_metric("eval/epoch")
@@ -197,7 +196,6 @@ class PPOTrainer(ABC):
         consumed_samples=0,
         num_update_steps_per_episodes=1,
     ) -> None:
-        print("Strat FIT ...")
         num_rollouts_per_episodes = (
             num_update_steps_per_episodes
             * args.train_batch_size
@@ -230,9 +228,8 @@ class PPOTrainer(ABC):
                 desc=f"Episode [{episode + 1}/{args.num_episodes}]",
                 disable=not self.strategy.is_rank_0(),
             )
-            print("Start Training....")
+
             for rand_prompts, labels in self.prompts_dataloader:
-                print(f"len rand_prompt length: {len(rand_prompts)}")
                 for i, experience in enumerate(
                     self.experience_maker.make_experience_list(rand_prompts, labels, **self.generate_kwargs)
                 ):
@@ -254,7 +251,6 @@ class PPOTrainer(ABC):
 
                 # logs/checkpoints
                 client_states = {"consumed_samples": steps * args.rollout_batch_size}
-                print("start wandb log...")
                 self.save_logs_and_checkpoints(args, steps, pbar, status, client_states)
 
                 pbar.update()
@@ -557,7 +553,6 @@ class PPOTrainer(ABC):
         return status
 
     def save_logs_and_checkpoints(self, args, global_step, step_bar, logs_dict={}, client_states={}):
-        print(f"wandb log logging_steps: {args.logging_steps}, wandb: {self._wandb}")
         if global_step % args.logging_steps == 0:
             # wandb
             if self._wandb is not None and self.strategy.is_rank_0():

@@ -38,6 +38,7 @@ OpenRLHF is a high-performance RLHF framework built on Ray, DeepSpeed and HF Tra
 More details are in [Slides](https://docs.google.com/presentation/d/1JRhB1d7csofx0PIZBmfyBdMluxNd5JLPpUHrrvVhGnk/edit?usp=sharing) | [Technical Report](https://arxiv.org/abs/2405.11143) | [Documents](https://openrlhf.readthedocs.io/)
 
 ## News
+- [2025/3] We open-sourced [OpenRLHF-M](https://github.com/OpenRLHF/OpenRLHF-M), a high-performance RLHF framework designed for multimodal models.
 - [2025/2] [Logic-RL](https://arxiv.org/abs/2502.14768) and [PRIME](https://arxiv.org/abs/2502.01456) demonstrate that REINFORCE++ is more stable in training compared to GRPO and faster than PPO.
 - [2025/2] StepFunc implements a [single-controller version of OpenRLHF](https://github.com/Open-Reasoner-Zero/Open-Reasoner-Zero).
 - [2025/2] [LMM-R1](https://github.com/TideDra/lmm-r1) is a fork of OpenRLHF, aimed at providing high-performance RL infrastructure for reproduction of DeepSeek-R1 on multimodal tasks.
@@ -495,6 +496,7 @@ We would like to express our gratitude to the following projects and organizatio
 - [Ray ↗](https://github.com/ray-project/ray)
 
 Our project would also like to thank [ColossalChat](https://github.com/hpcaitech/ColossalAI/tree/main/applications/Chat) and [DeepSpeedChat](https://github.com/microsoft/DeepSpeedExamples/tree/master/applications/DeepSpeed-Chat). In the early stages of the project, we referred to their code design. 
+Our project would like to thank [Netmind.AI](https://www.netmind.ai/) for the GPU support of developing ring attention.
 
 (2024/7) Our GitHub organization has changed from OpenLLMAI to OpenRLHF.
 

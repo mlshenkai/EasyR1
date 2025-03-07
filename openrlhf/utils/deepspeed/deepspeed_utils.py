@@ -1,15 +1,4 @@
-from enum import Enum
-
 from deepspeed.runtime.zero.partition_parameters import ZeroParamStatus
-
-
-class OffloadStateTypeEnum(str, Enum):
-    """ Enum for internal buffer types """
-    optim_states = "optim_states"
-    hp_params = "hp_params"
-    lp_params = "lp_params"
-    lp_grads = "lp_grads"
-    contiguous_grad_buffer = "contiguous_grad_buffer"
 
 
 def get_train_ds_config(
@@ -126,7 +115,7 @@ def offload_deepspeed_states(model, pin_memory=True, non_blocking=True):
 
     # if zero_stage == 3 and not adam_offload:
     import torch
-    from deepspeed.runtime.zero.offload_config import OffloadDeviceEnum
+    from deepspeed.runtime.zero.offload_config import OffloadDeviceEnum, OffloadStateTypeEnum
 
     model.optimizer.offload_states(
         include=[

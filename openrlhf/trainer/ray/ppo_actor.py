@@ -407,7 +407,6 @@ class ActorModelRayActor(BasePPORole):
             True,
             True,
         )
-        print(f"\nrollout batch size: {args.rollout_batch_size} / {strategy.world_size} = {args.rollout_batch_size // strategy.world_size}\n")
 
         if args.pretrain_data:
             pretrain_data = blending_datasets(
